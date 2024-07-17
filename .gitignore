@@ -1,0 +1,31 @@
+.vscode
+*.pyc
+.idea/
+.DS_Store
+
+# sample data that is too big to commit
+*.log
+*.bag
+script/gs/
+
+# build related files
+build/
+*.egg-info/
+dist/
+cos/__version__.py
+
+# local config files
+oss_configs/
+ansible/files
+ansible/hosts.yaml
+local.yaml
+
+# virtualenv
+venv/
+.venv/
+env/
+
+# Ignore everything in the subtree directory
+cos/mods/private/
+
+examples/

@@ -1,0 +1,145 @@
+# This is a workflow for building the cos executable on all three major platforms.
+name: Build-CLI
+
+# Controls when the workflow will run
+on:
+  # Triggers the workflow on push or pull request events but only for the "main" branch
+  push:
+    branches: [ "master" ]
+  release:
+    types: [ published ]
+
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+jobs:
+  lint-n-test:
+    uses: ./.github/workflows/lint-n-test.yml
+    secrets:
+      COS_API_KEY: ${{ secrets.COS_API_KEY }}
+
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check-out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          submodules: 'true'
+          token: ${{ secrets.GH_TOKEN }}
+
+      - id: check_version
+        run: |
+          echo $(git describe --dirty --tags --always)
+          echo "version=$(git describe --dirty --tags --always)" >> "$GITHUB_OUTPUT"
+    outputs:
+      version: ${{ steps.check_version.outputs.version }}
+
+  build_binaries:
+    strategy:
+      matrix:
+        include:
+#          - arch: x86_64
+#            os: windows
+#            label: windows-latest
+#            file: cos.exe
+          - arch: x86_64
+            os: linux
+            label: ubuntu-latest
+            file: cos
+          - arch: arm64
+            os: linux
+            label: [ linux-arm-64-8c-32g-300gb ]
+            file: cos
+    runs-on: ${{ matrix.label }}
+    needs: [check, lint-n-test]
+    permissions:
+      contents: write
+
+    steps:
+      - name: Check-out repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          submodules: 'true'
+          token: ${{ secrets.GH_TOKEN }}
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - uses: actions/cache@v3
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-${{ matrix.arch }}-pip
+          restore-keys: ${{ runner.os }}-${{ matrix.arch }}-pip
+
+      - name: Install Dependencies
+        shell: bash
+        env:
+          version: ${{ needs.check.outputs.version }}
+        run: |
+          pip install -r requirements.txt --extra-index-url https://buf.build/gen/python
+          mkdir -p dist
+          bash .github/scripts/update_version.sh $version
+
+      - uses: Nuitka/Nuitka-Action@main
+        with:
+          nuitka-version: main
+          script-name: main.py
+          onefile: true
+          standalone: true
+          onefile-tempdir-spec: "%CACHE_DIR%/coscene/onefile_%PID%_%TIME%"
+          output-dir: dist
+          output-file: ${{ matrix.file }}
+          include-package: rosbags
+          static-libpython: no
+
+      - name: Calculate SHA256
+        shell: bash
+        env:
+          version: ${{ needs.check.outputs.version }}
+        run: |
+          echo $version > dist/version
+          sha256sum dist/${{ matrix.file }} | cut -f 1 -d " " > dist/cos.sha256
+
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: cos_${{matrix.os}}_${{matrix.arch}}
+          path: |
+            dist/${{ matrix.file }}
+            dist/cos.sha256
+            dist/version
+
+      - name: Upload beta version to oss
+        uses: tvrcgo/oss-action@master
+        with:
+          key-id: ${{ secrets.ACK_ACCESS_KEY_ID }}
+          key-secret: ${{ secrets.ACK_ACCESS_KEY_SECRET }}
+          region: oss-cn-hangzhou
+          bucket: coscene-download
+          assets: |
+            dist/${{ matrix.file }}:/coscout/${{ matrix.os }}/${{ matrix.arch }}/${{ needs.check.outputs.version }}/${{ matrix.file }}
+            dist/${{ matrix.file }}:/coscout/${{ matrix.os }}/${{ matrix.arch }}/beta/${{ matrix.file }}
+            dist/version:/coscout/${{ matrix.os }}/${{ matrix.arch }}/${{ needs.check.outputs.version }}/version
+            dist/version:/coscout/${{ matrix.os }}/${{ matrix.arch }}/beta/version
+            dist/cos.sha256:/coscout/${{ matrix.os }}/${{ matrix.arch }}/${{ needs.check.outputs.version }}/cos.sha256
+            dist/cos.sha256:/coscout/${{ matrix.os }}/${{ matrix.arch }}/beta/cos.sha256
+
+      - name: Upload latest version to oss
+        uses: tvrcgo/oss-action@master
+        if: github.event_name == 'release'
+        with:
+          key-id: ${{ secrets.ACK_ACCESS_KEY_ID }}
+          key-secret: ${{ secrets.ACK_ACCESS_KEY_SECRET }}
+          region: oss-cn-hangzhou
+          bucket: coscene-download
+          assets: |
+            dist/${{ matrix.file }}:/coscout/${{ matrix.os }}/${{ matrix.arch }}/${{ needs.check.outputs.version }}/${{ matrix.file }}
+            dist/${{ matrix.file }}:/coscout/${{ matrix.os }}/${{ matrix.arch }}/latest/${{ matrix.file }}
+            dist/version:/coscout/${{ matrix.os }}/${{ matrix.arch }}/${{ needs.check.outputs.version }}/version
+            dist/version:/coscout/${{ matrix.os }}/${{ matrix.arch }}/latest/version
+            dist/cos.sha256:/coscout/${{ matrix.os }}/${{ matrix.arch }}/${{ needs.check.outputs.version }}/cos.sha256
+            dist/cos.sha256:/coscout/${{ matrix.os }}/${{ matrix.arch }}/latest/cos.sha256

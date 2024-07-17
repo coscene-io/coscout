@@ -1,0 +1,48 @@
+name: Upload Install Scripts
+
+on:
+  push:
+    branches: [ "master" ]
+    paths:
+      - 'script/install.sh'
+      - 'script/install.ps1'
+      - 'script/coscene.sh'
+  release:
+    types: [ published ]
+
+  workflow_dispatch:
+
+jobs:
+  upload-install-script:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
+
+    - name: Upload beta scripts
+      uses: tvrcgo/oss-action@master
+      with:
+        key-id: ${{ secrets.ACK_ACCESS_KEY_ID }}
+        key-secret: ${{ secrets.ACK_ACCESS_KEY_SECRET }}
+        region: oss-cn-hangzhou
+        bucket: coscene-download
+        assets: |
+          script/install.sh:/coscout/install-beta.sh
+          script/install.ps1:/coscout/install-beta.ps1
+          script/coscene.sh:/coscout/coscene-beta.sh
+
+    - name: Upload release scripts
+      uses: tvrcgo/oss-action@master
+      if: github.event_name == 'release'
+      with:
+        key-id: ${{ secrets.ACK_ACCESS_KEY_ID }}
+        key-secret: ${{ secrets.ACK_ACCESS_KEY_SECRET }}
+        region: oss-cn-hangzhou
+        bucket: coscene-download
+        assets: |
+          script/install.sh:/coscout/install.sh
+          script/install.ps1:/coscout/install.ps1
+          script/coscene.sh:/coscout/coscene.sh

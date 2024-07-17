@@ -1,0 +1,3 @@
+[submodule "cos/mods/private"]
+	path = cos/mods/private
+	url = git@github.com:coscene-io/coscout-mods.git

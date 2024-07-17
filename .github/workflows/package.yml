@@ -1,0 +1,31 @@
+name: Compile the offline installation package
+
+# Controls when the workflow will run
+on:
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+jobs:
+  package-zip-file:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
+
+    - name: Build Tar gz file
+      run: |
+        chmod +x script/package.sh
+        script/package.sh
+
+    - name: Upload Tar gz file
+      uses: tvrcgo/oss-action@master
+      with:
+        key-id: ${{ secrets.ACK_ACCESS_KEY_ID }}
+        key-secret: ${{ secrets.ACK_ACCESS_KEY_SECRET }}
+        region: oss-cn-hangzhou
+        bucket: coscene-download
+        assets: |
+          /home/runner/cos_binaries.tar.gz:/coscout/tar/latest/cos_binaries.tar.gz
