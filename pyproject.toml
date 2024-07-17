@@ -1,0 +1,36 @@
+[build-system]
+requires = ["setuptools", "setuptools-scm"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "cos"
+authors = [
+    {name = "Yangming Huang", email = "yangming@coscene.io"},
+    {name = "Yuejin Lan", email = "yuejin.lan@coscene.io"}
+]
+description = "My package description"
+requires-python = ">=3.10"
+classifiers = [
+    "Programming Language :: Python :: 3",
+]
+dynamic = ["version", "dependencies", "optional-dependencies"]
+
+[project.scripts]
+cos = "cos:cli"
+
+[tool.setuptools.dynamic]
+dependencies = {file = ["requirements.txt"]}
+
+[tool.setuptools.dynamic.optional-dependencies]
+dev = {file = "requirements-dev.txt"}
+
+[tool.setuptools.packages.find]
+include = ["cos", "cos.*"]
+
+[tool.pytest.ini_options]
+minversion = "7.3"
+addopts = "-ra -q"
+testpaths = ["tests"]
+
+[tool.black]
+line-length = 127

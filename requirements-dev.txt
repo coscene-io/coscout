@@ -1,0 +1,8 @@
+black~=23.7.0
+flake8~=6.1.0
+flake8-black~=0.3.3
+mock~=5.1.0
+pytest~=7.4.0
+pytest-cov~=4.1.0
+pytest-black~=0.3.12
+requests-mock~=1.11.0
