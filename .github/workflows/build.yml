@@ -53,6 +53,8 @@ jobs:
             label: [ linux-arm-64-8c-32g-300gb ]
             file: cos
     runs-on: ${{ matrix.label }}
+    container:
+      image: ubuntu:18.04
     needs: [check, lint-n-test]
     permissions:
       contents: write
