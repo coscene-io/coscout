@@ -99,7 +99,7 @@ jobs:
           bash .github/scripts/update_version.sh $version
 
       - name: Cache Nuitka cache directory
-        uses: actions/cache@v4
+        uses: actions/cache@v3
         with:
           path: ${{ env.NUITKA_CACHE_DIR }}
           key: ${{ runner.os }}-${{ runner.arch }}-python-${{ env.PYTHON_VERSION }}-nuitka-${{ github.sha }}
