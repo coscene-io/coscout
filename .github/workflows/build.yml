@@ -53,7 +53,7 @@ jobs:
             label: [ linux-arm-64-8c-32g-300gb ]
             file: cos
     runs-on: ${{ matrix.label }}
-    needs: [check, lint-n-test]
+#    needs: [check, lint-n-test]
     container: ubuntu:20.04
     permissions:
       contents: write
@@ -61,6 +61,11 @@ jobs:
       ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: true
 
     steps:
+      - name: Install git on container
+        run: |
+          apt update
+          apt install -y git
+
       - name: Check-out repo
         uses: actions/checkout@v3
         with:
