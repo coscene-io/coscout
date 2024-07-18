@@ -54,7 +54,7 @@ jobs:
             file: cos
     runs-on: ${{ matrix.label }}
 #    needs: [check, lint-n-test]
-    container: coscene/nuitka:ubuntu-16.04
+    container: ubuntu:18.04
     permissions:
       contents: write
     env:
@@ -75,6 +75,11 @@ jobs:
           fetch-depth: 0
           submodules: 'true'
           token: ${{ secrets.GH_TOKEN }}
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.9'
 
       - uses: actions/cache@v3
         with:
