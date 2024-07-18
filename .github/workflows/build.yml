@@ -63,6 +63,7 @@ jobs:
     steps:
       - name: Install git on container
         run: |
+          echo 'deb http://security.ubuntu.com/ubuntu jammy-security main' > /etc/apt/sources.list
           apt update
           apt install -y git libc6
 
