@@ -89,7 +89,7 @@ jobs:
         env:
           version: ${{ needs.check.outputs.version }}
         run: |
-          pip install -r requirements.txt --extra-index-url https://buf.build/gen/python
+          python3 -m pip install -r requirements.txt --extra-index-url https://buf.build/gen/python
           mkdir -p dist
           bash .github/scripts/update_version.sh $version
 
