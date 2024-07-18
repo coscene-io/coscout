@@ -53,9 +53,8 @@ jobs:
             label: [ linux-arm-64-8c-32g-300gb ]
             file: cos
     runs-on: ${{ matrix.label }}
-    container:
-      image: ubuntu:20.04
     needs: [check, lint-n-test]
+    container: coscene/nuitka:ubuntu-16.04
     permissions:
       contents: write
 
