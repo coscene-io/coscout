@@ -78,36 +78,39 @@ class LogHandler(BaseModel, HandlerInterface):
             },
         )
 
-    def msg_iterator(self, src_dir: Path):
-        _log.info(f"==> Start searching files in {src_dir}")
-        tail_dict = self.__update_tail_dict(dict(), src_dir, is_init=True)
+    def msg_iterator(self, src_dirs: list[Path]):
+        _log.info(f"==> Start searching files in {','.join([str(d) for d in src_dirs])}")
+        tail_dict = dict()
+        for src_dir in src_dirs:
+            tail_dict = self.__update_tail_dict(tail_dict, src_dir, is_init=True)
         latest_timestamps = dict()
 
         while True:
-            tail_dict = self.__update_tail_dict(tail_dict, src_dir)
-            # Sleep for 5 seconds to avoid too frequent operations
-            time.sleep(5)
-            for filename, (tail, hint) in tail_dict.items():
-                try:
-                    for line in tail:
-                        timestamp = get_timestamp_from_line(line, hint)
-                        if timestamp:
-                            latest_timestamps[filename] = int(timestamp.timestamp())
-                        if filename not in latest_timestamps:
-                            continue
+            for src_dir in src_dirs:
+                tail_dict = self.__update_tail_dict(tail_dict, src_dir)
+                # Sleep for 5 seconds to avoid too frequent operations
+                time.sleep(5)
+                for filename, (tail, hint) in tail_dict.items():
+                    try:
+                        for line in tail:
+                            timestamp = get_timestamp_from_line(line, hint)
+                            if timestamp:
+                                latest_timestamps[filename] = int(timestamp.timestamp())
+                            if filename not in latest_timestamps:
+                                continue
 
-                        yield RuleDataItem(
-                            os.path.join(src_dir, filename),
-                            LogMessageDataItem(line),
-                            latest_timestamps[filename],
-                            "foxglove.Log",
-                        )
-                except FileNotFoundError:
-                    _log.warning(f"==> File not found, might be deleted: {filename}")
-                    del tail_dict[filename]
-                    if filename in latest_timestamps:
-                        del latest_timestamps[filename]
-                    break
+                            yield RuleDataItem(
+                                os.path.join(src_dir, filename),
+                                LogMessageDataItem(line),
+                                latest_timestamps[filename],
+                                "foxglove.Log",
+                            )
+                    except FileNotFoundError:
+                        _log.warning(f"==> File not found, might be deleted: {filename}")
+                        del tail_dict[filename]
+                        if filename in latest_timestamps:
+                            del latest_timestamps[filename]
+                        break
 
     def __update_tail_dict(self, tail_dict: dict, dir_path: Path, is_init: bool = False):
         for entry_path in dir_path.iterdir():
