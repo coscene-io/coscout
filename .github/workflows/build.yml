@@ -64,7 +64,7 @@ jobs:
       - name: Install git on container
         run: |
           apt update
-          apt install -y git
+          apt install -y git libc6
 
       - name: Check-out repo
         uses: actions/checkout@v3
