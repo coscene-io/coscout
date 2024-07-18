@@ -54,7 +54,7 @@ jobs:
             file: cos
     runs-on: ${{ matrix.label }}
     container:
-      image: ubuntu:18.04
+      image: ubuntu:20.04
     needs: [check, lint-n-test]
     permissions:
       contents: write
