@@ -93,17 +93,10 @@ jobs:
           mkdir -p dist
           bash .github/scripts/update_version.sh $version
 
-      - uses: Nuitka/Nuitka-Action@main
-        with:
-          nuitka-version: main
-          script-name: main.py
-          onefile: true
-          standalone: true
-          onefile-tempdir-spec: "%CACHE_DIR%/coscene/onefile_%PID%_%TIME%"
-          output-dir: dist
-          output-file: ${{ matrix.file }}
-          include-package: rosbags
-          static-libpython: no
+      - name: build cos
+        run: |
+          python3 -m pip install -q -r requirements.txt nuitka --extra-index-url https://buf.build/gen/python
+          python3 -m nuitka --standalone --onefile --static-libpython=no --follow-imports --include-package=rosbags --output-filename=cos --output-dir=dist --company-name=coscene --onefile-tempdir-spec="%CACHE_DIR%/%COMPANY%/onefile_%PID%_%TIME%" main.py
 
       - name: Calculate SHA256
         shell: bash
