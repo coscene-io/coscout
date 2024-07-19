@@ -136,8 +136,8 @@ jobs:
       - name: Upload beta version to oss
         uses: tvrcgo/oss-action@d805009d52698055a35b19c14d190a02d04a4f43
         with:
-          key-id: ${{ secrets.ACK_ACCESS_KEY_ID }}
-          key-secret: ${{ secrets.ACK_ACCESS_KEY_SECRET }}
+          key-id: ${{ secrets.ACCESS_KEY_ID }}
+          key-secret: ${{ secrets.ACCESS_KEY_SECRET }}
           region: oss-cn-hangzhou
           bucket: coscene-download
           assets: |
@@ -152,8 +152,8 @@ jobs:
         uses: tvrcgo/oss-action@d805009d52698055a35b19c14d190a02d04a4f43
         if: github.event_name == 'release'
         with:
-          key-id: ${{ secrets.ACK_ACCESS_KEY_ID }}
-          key-secret: ${{ secrets.ACK_ACCESS_KEY_SECRET }}
+          key-id: ${{ secrets.ACCESS_KEY_ID }}
+          key-secret: ${{ secrets.ACCESS_KEY_SECRET }}
           region: oss-cn-hangzhou
           bucket: coscene-download
           assets: |
