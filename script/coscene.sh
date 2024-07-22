@@ -407,6 +407,7 @@ api:
   server_url: $SERVER_URL
   project_slug: $PROJECT_SLUG
   org_slug: $ORG_SLUG
+  type: grpc
 
 updater:
   enabled: true
