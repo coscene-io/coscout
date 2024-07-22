@@ -70,6 +70,8 @@ RAW_DEVICE_STATE_PATH: Path = COS_STATE_PATH / "raw_device.state.json"
 FILE_STATE_PATH: Path = COS_STATE_PATH / "file.state.json"
 
 RECORD_DIR_PATH: Path = COS_STATE_PATH / "records"
+DEFAULT_MOD_STATE_DIR: Path = COS_STATE_PATH / "default" / "state"
+DEFAULT_MOD_TEMP_DIR: Path = COS_STATE_PATH / "default" / "temp"
 RECORD_STATE_RELATIVE_PATH: str = str(Path(".cos", "state.json"))
 BIN_DIR_PATH: Path = COS_STATE_PATH / "bin"
 UPDATER_STATE_PATH: Path = COS_STATE_PATH / "updater.state.json"

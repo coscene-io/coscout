@@ -12,7 +12,7 @@ mcap~=1.1.1
 mcap-protobuf-support~=0.4.1
 mcap-ros1-support~=0.7.1
 mcap-ros2-support~=0.5.3
-cos-ruleengine==0.1.32
+cos-ruleengine==0.1.34
 chardet~=5.2.0
 pygtail~=0.14.0
 psutil~=5.9.8

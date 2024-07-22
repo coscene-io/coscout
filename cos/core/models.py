@@ -15,6 +15,7 @@
 import datetime
 import json
 import logging
+import os
 import shutil
 import time
 from abc import ABCMeta, abstractmethod
@@ -179,6 +180,8 @@ class RecordCache(BaseState):
     files: List[str] = []
     # the files with extra info such as size and sha256 (might be hardlink files)
     file_infos: List[FileInfo] = []
+    # the source paths to be deleted along with the record, usually the original file directory
+    paths_to_delete: List[str] = []
 
     def __init__(self, **data: Any):
         super().__init__(**data)
@@ -217,6 +220,19 @@ class RecordCache(BaseState):
             if self.base_dir_path.exists():
                 shutil.rmtree(str(self.base_dir_path.absolute()))
             _log.info(f"==> State file and folder expired and deleted: {self.key}")
+
+            for path_str in self.paths_to_delete:
+                p = Path(path_str).absolute()
+                if not p.exists():
+                    _log.warning(f"==> Source path not found: {path_str}")
+                    continue
+                try:
+                    if p.is_dir():
+                        shutil.rmtree(str(p))
+                    else:
+                        os.remove(str(p))
+                except Exception:
+                    _log.error(f"==> Error when deleting source path: {path_str}", exc_info=True)
 
     def list_files(self):
         return [str(f) for f in self.base_dir_path.glob("**/*") if f.is_file() and ".cos" not in f.parts]
