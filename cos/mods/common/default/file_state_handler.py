@@ -118,29 +118,30 @@ class FileStateHandler:
             if not file_path.exists():
                 self.__del_file_state(file_path)
 
-    def update_dir(self, dir_path: Path):
-        for entry in dir_path.iterdir():
-            for handler in self.file_handlers:
-                # Skip if the file handler does not support entry
-                if not handler.check_file_path(entry):
-                    continue
+    def update_dirs(self, dir_paths: list[Path]):
+        for dir_path in dir_paths:
+            for entry in dir_path.iterdir():
+                for handler in self.file_handlers:
+                    # Skip if the file handler does not support entry
+                    if not handler.check_file_path(entry):
+                        continue
 
-                # Skip if file state is already up-to-date
-                file_state = self.get_file_state(entry)
-                if file_state and file_state.get("size") == handler.get_file_size(entry):
-                    continue
+                    # Skip if file state is already up-to-date
+                    file_state = self.get_file_state(entry)
+                    if file_state and file_state.get("size") == handler.get_file_size(entry):
+                        continue
 
-                try:
-                    handler.update_path_state(entry, self.__set_file_state)
-                except Exception as e:
-                    _log.error(f"Failed to update file state for {entry}, error: {e}")
-                    self.__set_file_state(
-                        entry,
-                        {
-                            "size": entry.stat().st_size,
-                            "unsupported": True,
-                        },
-                    )
+                    try:
+                        handler.update_path_state(entry, self.__set_file_state)
+                    except Exception as e:
+                        _log.error(f"Failed to update file state for {entry}, error: {e}")
+                        self.__set_file_state(
+                            entry,
+                            {
+                                "size": entry.stat().st_size,
+                                "unsupported": True,
+                            },
+                        )
         self.__update_deleted_file_state()
         self.save_state()
 
@@ -169,10 +170,10 @@ class FileStateHandler:
             handler.diagnose(api_client, file_path, upload_fn)
             _log.info(f"Finished processing file {file_path}")
 
-    def get_files(self, dir_path: Path, start_time: int, end_time: int, get_dir: bool = False):
+    def get_files(self, dir_paths: list[Path], start_time: int, end_time: int, get_dir: bool = False):
         """
         Get a list of files that overlap with the given time range.
-        :param dir_path: The directory to search in.
+        :param dir_paths: The directories to search in.
         :param start_time: The start time of the time range in seconds.
         :param end_time: The end time of the time range in seconds.
         :param get_dir: Whether to fetch directories.
@@ -181,7 +182,7 @@ class FileStateHandler:
         return [
             filename
             for filename, file_state in self.state.items()
-            if Path(filename).parent == dir_path
+            if Path(filename).parent in set(dir_paths)
             and not file_state.get("unsupported")
             and file_state.get("start_time") <= end_time
             and file_state.get("end_time") >= start_time

@@ -46,9 +46,13 @@ class HandlerInterface(ABC):
         return file_path.stat().st_size
 
     # The following methods are diagnose related
-    def diagnose(self, api_client: ApiClient, file_path: Path, upload_fn: partial):
+    def diagnose(self, api_client: ApiClient, source: Path | list[Path], upload_fn: partial):
         """Diagnose the file"""
-        rule_executor = RuleExecutor(f"{file_path.name} Rule Executor", api_client, self.msg_iterator(file_path), upload_fn)
+        if not isinstance(source, list):
+            executor_name = f"{source.name} Rule Executor"
+        else:
+            executor_name = f"{','.join([s.name for s in source])} Rule Executor"
+        rule_executor = RuleExecutor(executor_name, api_client, self.msg_iterator(source), upload_fn)
         rule_executor.execute()
 
     @abstractmethod
