@@ -23,7 +23,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Check-out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v3
         with:
           fetch-depth: 0
           submodules: 'true'
@@ -54,21 +54,34 @@ jobs:
             file: cos
     runs-on: ${{ matrix.label }}
     needs: [check, lint-n-test]
+    container: coscene/nuitka:ubuntu-16.04
     permissions:
       contents: write
+    env:
+      ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: true
 
     steps:
+      - name: Setup Environment Variables
+        shell: bash
+        run: |
+          echo "NUITKA_CACHE_DIR=${{ github.action_path }}/nuitka/cache" >> $GITHUB_ENV
+          echo "PYTHON_VERSION=$(python3 --version | awk '{print $2}' | cut -d '.' -f 1,2)" >> $GITHUB_ENV
+
+      - name: Install git on container
+        if: ${{ runner.os == 'Linux' }}
+        run: |
+          apt update
+          apt install -y software-properties-common
+          add-apt-repository -y ppa:git-core/ppa
+          apt update
+          apt install -y git patchelf ccache
+
       - name: Check-out repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v3
         with:
           fetch-depth: 0
           submodules: 'true'
           token: ${{ secrets.GH_TOKEN }}
-
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
 
       - uses: actions/cache@v3
         with:
@@ -81,21 +94,27 @@ jobs:
         env:
           version: ${{ needs.check.outputs.version }}
         run: |
-          pip install -r requirements.txt --extra-index-url https://buf.build/gen/python
+          python3 -m pip install -r requirements.txt --extra-index-url https://buf.build/gen/python
           mkdir -p dist
           bash .github/scripts/update_version.sh $version
 
-      - uses: Nuitka/Nuitka-Action@main
+      - name: Cache Nuitka cache directory
+        uses: actions/cache@v3
         with:
-          nuitka-version: main
-          script-name: main.py
-          onefile: true
-          standalone: true
-          onefile-tempdir-spec: "%CACHE_DIR%/coscene/onefile_%PID%_%TIME%"
-          output-dir: dist
-          output-file: ${{ matrix.file }}
-          include-package: rosbags
-          static-libpython: no
+          path: ${{ env.NUITKA_CACHE_DIR }}
+          key: ${{ runner.os }}-${{ runner.arch }}-python-${{ env.PYTHON_VERSION }}-nuitka-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-${{ runner.arch }}-python-${{ env.PYTHON_VERSION }}-
+            ${{ runner.os }}-${{ runner.arch }}-python-
+            ${{ runner.os }}-${{ runner.arch }}-
+
+      - name: Build cos binary
+        shell: bash
+        env:
+          version: ${{ needs.check.outputs.version }}
+        run: |
+          python3 -m pip install -q -r requirements.txt nuitka --extra-index-url https://buf.build/gen/python
+          python3 -m nuitka --standalone --onefile --static-libpython=no --follow-imports --include-package=rosbags --output-filename=${{ matrix.file }} --output-dir=dist --company-name=coscene --onefile-tempdir-spec="%CACHE_DIR%/%COMPANY%/onefile_%PID%_%TIME%" --assume-yes-for-downloads main.py
 
       - name: Calculate SHA256
         shell: bash
@@ -115,10 +134,10 @@ jobs:
             dist/version
 
       - name: Upload beta version to oss
-        uses: tvrcgo/oss-action@master
+        uses: tvrcgo/oss-action@d805009d52698055a35b19c14d190a02d04a4f43
         with:
-          key-id: ${{ secrets.ACK_ACCESS_KEY_ID }}
-          key-secret: ${{ secrets.ACK_ACCESS_KEY_SECRET }}
+          key-id: ${{ secrets.ACCESS_KEY_ID }}
+          key-secret: ${{ secrets.ACCESS_KEY_SECRET }}
           region: oss-cn-hangzhou
           bucket: coscene-download
           assets: |
@@ -130,11 +149,11 @@ jobs:
             dist/cos.sha256:/coscout/${{ matrix.os }}/${{ matrix.arch }}/beta/cos.sha256
 
       - name: Upload latest version to oss
-        uses: tvrcgo/oss-action@master
+        uses: tvrcgo/oss-action@d805009d52698055a35b19c14d190a02d04a4f43
         if: github.event_name == 'release'
         with:
-          key-id: ${{ secrets.ACK_ACCESS_KEY_ID }}
-          key-secret: ${{ secrets.ACK_ACCESS_KEY_SECRET }}
+          key-id: ${{ secrets.ACCESS_KEY_ID }}
+          key-secret: ${{ secrets.ACCESS_KEY_SECRET }}
           region: oss-cn-hangzhou
           bucket: coscene-download
           assets: |

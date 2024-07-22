@@ -23,8 +23,8 @@ jobs:
     - name: Upload Tar gz file
       uses: tvrcgo/oss-action@master
       with:
-        key-id: ${{ secrets.ACK_ACCESS_KEY_ID }}
-        key-secret: ${{ secrets.ACK_ACCESS_KEY_SECRET }}
+        key-id: ${{ secrets.ACCESS_KEY_ID }}
+        key-secret: ${{ secrets.ACCESS_KEY_SECRET }}
         region: oss-cn-hangzhou
         bucket: coscene-download
         assets: |
