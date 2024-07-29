@@ -300,6 +300,7 @@ class DefaultMod(Mod):
 
     def start_log_listener(self, source_dirs: list[Path], state_dir: Path):
         log_thread_flag = False
+        LogHandler.update_dirs_to_scan(source_dirs)
 
         for t in threading.enumerate():
             if t.name == self.log_thread_name:
@@ -307,10 +308,9 @@ class DefaultMod(Mod):
 
         if not log_thread_flag:
             t = threading.Thread(
-                target=LogHandler().diagnose,
+                target=LogHandler().scan_dirs_and_diagnose,
                 args=(
                     self._api_client,
-                    source_dirs,
                     partial(
                         DefaultMod.__dump_upload_json,
                         state_dir=state_dir,
@@ -322,6 +322,7 @@ class DefaultMod(Mod):
             t.start()
             _log.info("Thread start log listener")
         else:
+            LogHandler().update_dirs_to_scan(source_dirs)
             _log.info("Thread already start log listener, skip!")
 
     def start_task_handler(self, api_client: ApiClient, upload_files: list[str]):

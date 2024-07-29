@@ -11,17 +11,19 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
+import collections
 import logging
 import os
 import shutil
 import time
+from functools import partial
 from pathlib import Path
-from typing import Callable
+from typing import Callable, ClassVar
 
 import pygtail
 from pydantic import BaseModel
 
+from cos.core.api import ApiClient
 from cos.mods.common.default.handlers.handler_interface import HandlerInterface
 from cos.mods.common.default.log_utils import (
     get_end_timestamp,
@@ -30,12 +32,15 @@ from cos.mods.common.default.log_utils import (
     get_timestamp_from_line,
     get_timestamp_hint_from_file,
 )
-from cos.mods.common.default.rule_executor import LogMessageDataItem, RuleDataItem
+from cos.mods.common.default.rule_executor import LogMessageDataItem, RuleDataItem, RuleExecutor
 
 _log = logging.getLogger(__name__)
 
 
 class LogHandler(BaseModel, HandlerInterface):
+    # src_dirs is a list of directories to scan for log files
+    src_dirs: ClassVar[list[Path]] = []
+
     def __str__(self):
         return "LOG Handler"
 
@@ -78,15 +83,28 @@ class LogHandler(BaseModel, HandlerInterface):
             },
         )
 
-    def msg_iterator(self, src_dirs: list[Path]):
-        _log.info(f"==> Start searching files in {','.join([str(d) for d in src_dirs])}")
+    def msg_iterator(self, file_path: Path):
+        _log.warning("==> This method is not supported for log handler")
+        return
+
+    @classmethod
+    def update_dirs_to_scan(cls, dirs_to_scan: list[Path]):
+        # check if there's any change in the directories to scan
+        if collections.Counter(cls.src_dirs) == collections.Counter(dirs_to_scan):
+            return
+
+        cls.src_dirs = dirs_to_scan
+        _log.info(f"==> Updated directories to scan: {','.join([str(d.name) for d in cls.src_dirs])}")
+
+    def scan_dirs(self):
+        _log.info(f"==> Start searching files in {','.join([str(d.name) for d in self.src_dirs])}")
         tail_dict = dict()
-        for src_dir in src_dirs:
+        for src_dir in self.src_dirs:
             tail_dict = self.__update_tail_dict(tail_dict, src_dir, is_init=True)
         latest_timestamps = dict()
 
         while True:
-            for src_dir in src_dirs:
+            for src_dir in self.src_dirs:
                 tail_dict = self.__update_tail_dict(tail_dict, src_dir)
                 # Sleep for 5 seconds to avoid too frequent operations
                 time.sleep(5)
@@ -111,6 +129,11 @@ class LogHandler(BaseModel, HandlerInterface):
                         if filename in latest_timestamps:
                             del latest_timestamps[filename]
                         break
+
+    def scan_dirs_and_diagnose(self, api_client: ApiClient, upload_fn: partial):
+        executor_name = "Log Scan Rule Executor"
+        rule_executor = RuleExecutor(executor_name, api_client, self.scan_dirs(), upload_fn)
+        rule_executor.execute()
 
     def __update_tail_dict(self, tail_dict: dict, dir_path: Path, is_init: bool = False):
         for entry_path in dir_path.iterdir():
