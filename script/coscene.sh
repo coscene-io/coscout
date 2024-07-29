@@ -519,7 +519,7 @@ RestartSec=60
 Restart=always
 
 [Install]
-WantedBy=multi-user.target
+WantedBy=default.target
 EOL
   echo "Created cos.service systemd file: $USER_SYSTEMD_DIR/cos.service"
 
