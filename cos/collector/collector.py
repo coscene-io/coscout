@@ -129,7 +129,7 @@ class Collector:
                 device_name=self.device["name"],
             )
 
-            if moment.task and moment.task.assignee:
+            if moment.task:
                 _ = self.api.create_task(
                     record_name=record.get("name"),
                     title=moment.title if moment.title else record_title,

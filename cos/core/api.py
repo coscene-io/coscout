@@ -684,7 +684,7 @@ class ApiClient(metaclass=ABCMeta):
 
     # region task
     @abstractmethod
-    def create_task(self, record_name: str, title: str, description: str, assignee: str):
+    def create_task(self, record_name: str, title: str, description: str, assignee: str | None):
         """
         :param assignee:  任务的执行者
         :param record_name: 记录的resource name

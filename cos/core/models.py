@@ -136,7 +136,7 @@ class Task(BaseModel):
     title: str = ""
     description: str = ""
     record_name: str = ""
-    assignee: str = ""
+    assignee: str | None = None
 
 
 class Moment(BaseModel):

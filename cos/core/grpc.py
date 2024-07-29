@@ -556,20 +556,20 @@ class GrpcClient(ApiClient):
                 raise Unauthorized("Unauthorized")
             raise RuntimeError("Failed to get diagnosis rule")
 
-    def create_task(self, record_name: str, title: str, description: str, assignee: str) -> dict:
+    def create_task(self, record_name: str, title: str, description: str, assignee: str | None) -> dict:
         try:
-            req = task_pb2.CreateTaskRequest(
-                parent=self.project_name,
-                task=task_pb2_resource.Task(
-                    title=title,
-                    description=description,
-                    assignee=assignee,
-                    category=task_category_pb2.TaskCategoryEnum.COMMON,
-                    common_task_detail=task_pb2_resource.CommonTaskDetail(
-                        record=record_name,
-                    ),
+            init_task = task_pb2_resource.Task(
+                title=title,
+                description=description,
+                category=task_category_pb2.TaskCategoryEnum.COMMON,
+                common_task_detail=task_pb2_resource.CommonTaskDetail(
+                    record=record_name,
                 ),
             )
+            if assignee:
+                init_task.assignee = assignee
+
+            req = task_pb2.CreateTaskRequest(parent=self.project_name, task=init_task)
             stub = task_pb2_grpc.TaskServiceStub(self._channel)
             res = stub.CreateTask(req, timeout=10)
 
