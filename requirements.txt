@@ -9,7 +9,7 @@ tqdm~=4.66.4
 platformdirs~=3.10.0
 certifi~=2024.2.2
 mcap~=1.1.1
-mcap-protobuf-support~=0.4.1
+mcap-protobuf-support~=0.5.1
 mcap-ros1-support~=0.7.1
 mcap-ros2-support~=0.5.3
 cos-ruleengine==0.1.34
