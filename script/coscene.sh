@@ -198,15 +198,23 @@ while test $# -gt 0; do
   esac
 done
 
+CUR_USER=$SUDO_USER
+if [ -z "$CUR_USER" ]; then
+    echo "'can not get current user"
+    exit 1
+fi
+
 # enable linger
-CUR_USER=$(whoami)
 echo "Enabling linger for user: $CUR_USER"
 sudo loginctl enable-linger "$CUR_USER"
 
-if [ -z "$HOME" ]; then
+CUR_USER_HOME=$(getent passwd "$SUDO_USER" | cut -d: -f6)
+
+if [ -z "$CUR_USER_HOME" ]; then
     echo "'HOME' environment variable is not set"
     exit 1
 fi
+
 
 # get user input
 get_user_input SERVER_URL "please input server_url: " "${SERVER_URL}"
@@ -368,10 +376,10 @@ echo "Start install cos..."
 # remove old config before install
 if [[ $REMOVE_CONFIG -eq 1 ]]; then
   echo "remove exists config file."
-  rm -rf "$HOME"/.local/state/cos
-  rm -rf "$HOME"/.config/cos
-  rm -rf "$HOME"/.cache/coscene
-  rm -rf "$HOME"/.cache/cos
+  rm -rf "$CUR_USER_HOME"/.local/state/cos
+  rm -rf "$CUR_USER_HOME"/.config/cos
+  rm -rf "$CUR_USER_HOME"/.cache/coscene
+  rm -rf "$CUR_USER_HOME"/.cache/cos
 fi
 
 # set some variables
@@ -387,11 +395,11 @@ if [[ $BETA -eq 1 ]]; then
 fi
 
 # region config
-COS_SHELL_BASE="$HOME/.local"
+COS_SHELL_BASE="$CUR_USER_HOME/.local"
 
 # make some directories
-COS_CONFIG_DIR="$HOME/.config/cos"
-COS_STATE_DIR="$HOME/.local/state/cos"
+COS_CONFIG_DIR="$CUR_USER_HOME/.config/cos"
+COS_STATE_DIR="$CUR_USER_HOME/.local/state/cos"
 mkdir -p "$COS_CONFIG_DIR" "$COS_STATE_DIR" "$COS_SHELL_BASE/bin"
 cat >"${COS_STATE_DIR}/install.state.json" <<EOL
 {
@@ -495,7 +503,7 @@ if [[ $DISABLE_SYSTEMD -eq 0 ]]; then
 #  echo "Installing the systemd service requires root permissions."
 #  cat >/lib/systemd/system/cos.service <<EOL
 
-  USER_SYSTEMD_DIR="$HOME/.config/systemd/user"
+  USER_SYSTEMD_DIR="$CUR_USER_HOME/.config/systemd/user"
   mkdir -p "$USER_SYSTEMD_DIR"
   cat >"$USER_SYSTEMD_DIR"/cos.service <<EOL
 [Unit]
@@ -508,11 +516,11 @@ StartLimitIntervalSec=86400
 
 [Service]
 Type=simple
-WorkingDirectory=$HOME/.local/state/cos
+WorkingDirectory=$CUR_USER_HOME/.local/state/cos
 StandardOutput=syslog
 StandardError=syslog
 CPUQuota=10%
-ExecStartPre=/bin/sh -c "rm -rf $HOME/.cache/coscene/onefile_*"
+ExecStartPre=/bin/sh -c "rm -rf $CUR_USER_HOME/.cache/coscene/onefile_*"
 ExecStart=$COS_SHELL_BASE/bin/cos daemon
 SyslogIdentifier=cos
 RestartSec=60
