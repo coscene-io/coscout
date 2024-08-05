@@ -114,7 +114,7 @@ jobs:
           version: ${{ needs.check.outputs.version }}
         run: |
           python3 -m pip install -q -r requirements.txt nuitka --extra-index-url https://buf.build/gen/python
-          python3 -m nuitka --standalone --onefile --static-libpython=no --follow-imports --include-package=rosbags --output-filename=${{ matrix.file }} --output-dir=dist --company-name=coscene --onefile-tempdir-spec="%CACHE_DIR%/%COMPANY%/onefile_%PID%_%TIME%" --assume-yes-for-downloads main.py
+          python3 -m nuitka --debug --standalone --onefile --static-libpython=no --include-package=rosbags --output-filename=${{ matrix.file }} --output-dir=dist --company-name=coscene --onefile-tempdir-spec="{CACHE_DIR}/{COMPANY}/onefile_{PID}_{TIME}" --assume-yes-for-downloads main.py
 
       - name: Calculate SHA256
         shell: bash
