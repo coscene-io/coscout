@@ -42,12 +42,19 @@ def rules(ctx: Context):
     project_names = [p.get("name") for p in projects]
 
     device_rules = []
+
     for proj_name in project_names:
+        try:
+            ver = ctx.api.get_diagnosis_rules_metadata(proj_name).get("currentVersion", -1)
+            rules = ctx.api.get_diagnosis_rule(proj_name)
+        except Exception:
+            continue
+
         device_rules.append(
             {
                 "project_name": proj_name,
-                "version": ctx.api.get_diagnosis_rules_metadata(proj_name).get("currentVersion", -1),
-                "rules": [ctx.api.get_diagnosis_rule(proj_name)],
+                "version": ver,
+                "rules": [rules],
             }
         )
     click.echo(json.dumps(device_rules))
