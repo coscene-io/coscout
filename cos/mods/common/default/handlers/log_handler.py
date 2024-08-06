@@ -94,10 +94,10 @@ class LogHandler(BaseModel, HandlerInterface):
             return
 
         cls.src_dirs = dirs_to_scan
-        _log.info(f"==> Updated directories to scan: {','.join([str(d.name) for d in cls.src_dirs])}")
+        _log.info(f"==> Updated directories to scan: {cls.src_dirs}")
 
     def scan_dirs(self):
-        _log.info(f"==> Start searching files in {','.join([str(d.name) for d in self.src_dirs])}")
+        _log.info(f"==> Start searching files in {self.src_dirs}")
         tail_dict = dict()
         for src_dir in self.src_dirs:
             tail_dict = self.__update_tail_dict(tail_dict, src_dir, is_init=True)
@@ -142,6 +142,12 @@ class LogHandler(BaseModel, HandlerInterface):
             filename_abs = str(entry_path.absolute())
             if filename_abs not in tail_dict:
                 _log.info(f"==> New file found{' when initializing' if is_init else ''}: {filename_abs}")
+
+                if not get_start_timestamp(entry_path) or not get_end_timestamp(entry_path):
+                    _log.warning(f"==> Failed to get start or end timestamp for {filename_abs}")
+                    tail_dict[filename_abs] = ([], None)
+                    continue
+
                 file_encoding = get_file_encoding(entry_path)
                 tail_dict[filename_abs] = (
                     pygtail.Pygtail(
