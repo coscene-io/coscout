@@ -274,7 +274,9 @@ class DefaultMod(Mod):
             base_dir.mkdir(parents=True, exist_ok=True)
             base_dirs_set.add(base_dir)
         if self.conf.base_dir:
-            base_dirs_set.add(Path(self.conf.base_dir).absolute())
+            base_dir = Path(self.conf.base_dir).absolute()
+            base_dir.mkdir(parents=True, exist_ok=True)
+            base_dirs_set.add(base_dir)
         base_dirs = list(base_dirs_set)
 
         state_dir = DEFAULT_MOD_STATE_DIR
