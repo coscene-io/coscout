@@ -145,18 +145,12 @@ class DefaultMod(Mod):
         temp_files_dir = temp_dir / error_json_id
         temp_files_dir.mkdir(parents=True, exist_ok=True)
 
-        _log.info(
-            f"==> Search for files in {source_dirs}"
-            + f", start_time: {start_time}, end_time: {end_time}"
-        )
+        _log.info(f"==> Search for files in {source_dirs}" + f", start_time: {start_time}, end_time: {end_time}")
         raw_files = file_state_handler.get_files(source_dirs, start_time, end_time)
         _log.info(f"==> Found files: {raw_files}")
         raw_files += error_json["cut"]["extraFiles"]
 
-        _log.info(
-            f"==> Search for dirs in {source_dirs}"
-            + f", start_time: {start_time}, end_time: {end_time}"
-        )
+        _log.info(f"==> Search for dirs in {source_dirs}" + f", start_time: {start_time}, end_time: {end_time}")
         raw_dirs = file_state_handler.get_files(source_dirs, start_time, end_time, True)
         _log.info(f"==> Found dirs: {raw_dirs}")
 
