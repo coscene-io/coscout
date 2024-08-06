@@ -44,6 +44,7 @@ _log = logging.getLogger(__name__)
 class DefaultModConfig(BaseModel):
     enabled: bool = False
     base_dirs: list[str] = None
+    base_dir: str = ""
     sn_file: str | None = ""
     sn_field: str | None = ""
     ros2_customized_msgs_dirs: list[str] = []
@@ -267,11 +268,16 @@ class DefaultMod(Mod):
 
         # todo Find a better place to initialize FileStateHandler
         FileStateHandler.get_instance(self.conf.ros2_customized_msgs_dirs)
-        base_dirs: list[Path] = []
+        base_dirs_set: set[Path] = set()
         for base_dir_str in self.conf.base_dirs:
             base_dir = Path(base_dir_str).absolute()
             base_dir.mkdir(parents=True, exist_ok=True)
-            base_dirs.append(base_dir)
+            base_dirs_set.add(base_dir)
+        if self.conf.base_dir:
+            base_dir = Path(self.conf.base_dir).absolute()
+            base_dir.mkdir(parents=True, exist_ok=True)
+            base_dirs_set.add(base_dir)
+        base_dirs = list(base_dirs_set)
 
         state_dir = DEFAULT_MOD_STATE_DIR
         state_dir.mkdir(parents=True, exist_ok=True)
