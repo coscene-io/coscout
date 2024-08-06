@@ -13,7 +13,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-
 set -Eeuo pipefail
 
 ## check root user
@@ -67,7 +66,7 @@ PROJECT_SLUG=""
 ORG_SLUG=""
 USE_LOCAL=""
 BETA=0
-DISABLE_SYSTEMD=0
+DISABLE_SERVICE=0
 REMOVE_CONFIG=0
 MOD="default"
 SN_FILE=""
@@ -75,7 +74,7 @@ SN_FIELD=""
 
 VIRMESH_ENDPOINT=""
 ARTIFACT_BASE_URL=https://coscene-artifacts-production.oss-cn-hangzhou.aliyuncs.com
-VIRMESH_DOWNLOAD_URL=${ARTIFACT_BASE_URL}/virmesh/v0.2.8/virmesh-${MESH_ARCH}
+VIRMESH_DOWNLOAD_URL=${ARTIFACT_BASE_URL}/virmesh/v0.2.9/virmesh-${MESH_ARCH}
 TRZSZ_DOWNLOAD_URL=${ARTIFACT_BASE_URL}/trzsz/v1.1.6/trzsz_1.1.6_linux_${MESH_ARCH}.tar.gz
 
 help() {
@@ -83,12 +82,12 @@ help() {
 usage: $0 [OPTIONS]
 
     --help               Show this message
-    --server_url         Api server url, e.g. https://api.coscene.cn
+    --server_url         Api server url, e.g. https://openapi.coscene.cn
     --project_slug       The slug of the project to upload to
     --org_slug           The slug of the organization device belongs to, project_slug or org_slug should be provided
     --beta               Use beta version for cos
     --use_local          Use local binary file zip path e.g. /xx/path/xx.zip
-    --disable_systemd    Disable systemd service installation
+    --disable_service    Disable systemd or upstart service installation
     --mod                Select the mod to install - gs, agi, task, default (default is 'default')
     --virmesh_endpoint   Virmesh endpoint, e.g. https://api.mesh.staging.coscene.cn/mesh, will skip if not provided
     --sn_file            The file path of the serial number file, will skip if not provided
@@ -160,8 +159,8 @@ while test $# -gt 0; do
     USE_LOCAL="${1#*=}"
     shift # past argument=value
     ;;
-  --disable_systemd)
-    DISABLE_SYSTEMD=1
+  --disable_service)
+    DISABLE_SERVICE=1
     shift # past argument
     ;;
   --mod=*)
@@ -198,23 +197,19 @@ while test $# -gt 0; do
   esac
 done
 
-CUR_USER=$SUDO_USER
+CUR_USER=${SUDO_USER:-${USER:-$(whoami)}}
 if [ -z "$CUR_USER" ]; then
-    echo "'can not get current user"
-    exit 1
+  echo "can not get current user"
+  exit 1
 fi
 
-# enable linger
-echo "Enabling linger for user: $CUR_USER"
-sudo loginctl enable-linger "$CUR_USER"
-
-CUR_USER_HOME=$(getent passwd "$SUDO_USER" | cut -d: -f6)
-
+echo "Current user: $CUR_USER"
+CUR_USER_HOME=$(getent passwd "$CUR_USER" | cut -d: -f6)
 if [ -z "$CUR_USER_HOME" ]; then
-    echo "'HOME' environment variable is not set"
-    exit 1
+  echo "Cannot get home directory for user $CUR_USER"
+  exit 1
 fi
-
+echo "User home directory: $CUR_USER_HOME"
 
 # get user input
 get_user_input SERVER_URL "please input server_url: " "${SERVER_URL}"
@@ -261,12 +256,6 @@ if [[ -n $SN_FILE ]]; then
     echo "ERROR: --sn_field is not specified when sn file exist. Exiting."
     exit 1
   fi
-fi
-
-# check systemd
-if [[ $DISABLE_SYSTEMD -eq 0 ]] && [ "$(ps --no-headers -o comm 1)" != "systemd" ]; then
-  echo "Current system is not using systemd."
-  exit 1
 fi
 
 # check local file path
@@ -345,9 +334,11 @@ else
   sudo mv -f "$TEMP_DIR"/trzsz/* /usr/local/bin/
   rm -rf "$TEMP_DIR"/trzsz.tar.gz
 
-  if [[ $DISABLE_SYSTEMD -eq 0 ]]; then
-    echo "Installing systemd service..."
-    sudo tee /etc/systemd/system/virmesh.service >/dev/null <<EOF
+  # check systemd or upstart service
+  if [[ $DISABLE_SERVICE -eq 0 ]]; then
+    if [[ "$(ps --no-headers -o comm 1 2>&1)" == "systemd" ]] && command -v systemctl 2>&1; then
+      echo "Installing systemd service..."
+      sudo tee /etc/systemd/system/virmesh.service >/dev/null <<EOF
 
 [Unit]
 Description=Virmesh Client Daemon
@@ -359,14 +350,54 @@ ExecStart=/usr/local/bin/virmesh --endpoint $VIRMESH_ENDPOINT --allow-ssh
 [Install]
 WantedBy=multi-user.target
 EOF
-    sudo systemctl daemon-reload
+      sudo systemctl daemon-reload
 
-    echo "Starting virmesh service..."
-    sudo systemctl is-active --quiet virmesh && sudo systemctl stop virmesh
-    sudo systemctl enable virmesh
-    sudo systemctl start virmesh
+      echo "Starting virmesh service..."
+      sudo systemctl is-active --quiet virmesh && sudo systemctl stop virmesh
+      sudo systemctl enable virmesh
+      sudo systemctl start virmesh
+    elif /sbin/init --version 2>&1 | grep -q upstart; then
+      echo "Installing upstart service..."
+      sudo tee /etc/init/virmesh.conf >/dev/null <<EOF
+description "Virmesh Client Daemon"
+
+# Start the service when networking is up
+start on started networking
+
+# Stop the service when leaving runlevel 2, 3, 4, 5
+stop on runlevel [!2345]
+
+# Respawn the service if it crashes
+respawn
+
+# Limit respawn attempts to 4 within a 25 second period
+respawn limit 4 30
+
+# Consider exit code 0 as normal and not trigger a respawn
+normal exit 0
+
+env VIRMESH_ENDPOINT=$VIRMESH_ENDPOINT
+script
+    # Change to the appropriate working directory
+    cd /etc
+    # Start the daemon
+    exec /usr/local/bin/virmesh --endpoint $VIRMESH_ENDPOINT --allow-ssh
+end script
+EOF
+
+    SERVICE_NAME="virmesh"
+    STATUS_OUTPUT=$(sudo initctl status "$SERVICE_NAME")
+    if echo "$STATUS_OUTPUT" | grep -q "start/running"; then
+        echo "$SERVICE_NAME is running. Stopping it now..."
+        sudo initctl stop "$SERVICE_NAME"
+        echo "$SERVICE_NAME has been stopped."
+    else
+        echo "$SERVICE_NAME is not running."
+    fi
+    sudo initctl start $SERVICE_NAME
+    fi
   else
-    echo "Skipping systemd service installation, just install virmesh binary..."
+    echo "Skipping systemd or upstart service installation, just install virmesh binary..."
   fi
   echo "Successfully installed virmesh."
 fi
@@ -401,11 +432,6 @@ COS_SHELL_BASE="$CUR_USER_HOME/.local"
 COS_CONFIG_DIR="$CUR_USER_HOME/.config/cos"
 COS_STATE_DIR="$CUR_USER_HOME/.local/state/cos"
 mkdir -p "$COS_CONFIG_DIR" "$COS_STATE_DIR" "$COS_SHELL_BASE/bin"
-cat >"${COS_STATE_DIR}/install.state.json" <<EOL
-{
-  "init_install": true
-}
-EOL
 
 # create config file
 echo "Creating config file..."
@@ -496,16 +522,16 @@ chmod +x "$COS_SHELL_BASE/bin/cos"
 check_binary cos
 
 # check disable systemd, default will install cos.service
-if [[ $DISABLE_SYSTEMD -eq 0 ]]; then
+if [[ $DISABLE_SERVICE -eq 0 ]]; then
+  if [[ "$(ps --no-headers -o comm 1 2>&1)" == "systemd" ]] && command -v systemctl 2>&1; then
+    # create cos.service systemd file
+    echo "Creating cos.service systemd file..."
+    #  echo "Installing the systemd service requires root permissions."
+    #  cat >/lib/systemd/system/cos.service <<EOL
 
-  # create cos.service systemd file
-  echo "Creating cos.service systemd file..."
-#  echo "Installing the systemd service requires root permissions."
-#  cat >/lib/systemd/system/cos.service <<EOL
-
-  USER_SYSTEMD_DIR="$CUR_USER_HOME/.config/systemd/user"
-  mkdir -p "$USER_SYSTEMD_DIR"
-  cat >"$USER_SYSTEMD_DIR"/cos.service <<EOL
+    USER_SYSTEMD_DIR="$CUR_USER_HOME/.config/systemd/user"
+    mkdir -p "$USER_SYSTEMD_DIR"
+    cat >"$USER_SYSTEMD_DIR"/cos.service <<EOL
 [Unit]
 Description=coScout: Data Collector by coScene
 Documentation=https://github.com/coscene-io/sample-json-api-files
@@ -529,19 +555,62 @@ Restart=always
 [Install]
 WantedBy=default.target
 EOL
-  echo "Created cos.service systemd file: $USER_SYSTEMD_DIR/cos.service"
+    echo "Created cos.service systemd file: $USER_SYSTEMD_DIR/cos.service"
 
-  echo "Starting cos service for $CUR_USER..."
-  systemctl --user daemon-reload
-  systemctl --user is-active --quiet cos && systemctl --user stop cos
-  systemctl --user enable cos
-  systemctl --user start cos
-  echo "Done."
+    echo "Starting cos service for $CUR_USER..."
+    systemctl --user daemon-reload
+    systemctl --user is-active --quiet cos && systemctl --user stop cos
+    systemctl --user enable cos
+    systemctl --user start cos
+    echo "Done."
+
+    echo "Installation completed successfully 🎉, you can use 'journalctl --user-unit=cos -f -n 50' to check the logs."
+  elif /sbin/init --version 2>&1 | grep -q upstart; then
+    echo "Installing upstart service..."
+    sudo tee /etc/init/cos.conf >/dev/null <<EOF
+description "coScout: Data Collector by coScene"
+author "coScene"
+
+start on started networking
+stop on runlevel [!2345]
+
+# Limit the start attempts
+respawn
+respawn limit 10 86400
+
+pre-start script
+    rm -rf $CUR_USER_HOME/.cache/coscene/onefile_*
+end script
+
+script
+    cd $CUR_USER_HOME/.local/state/cos
+    exec $COS_SHELL_BASE/bin/cos daemon
+end script
+
+post-stop script
+    # Any cleanup code can go here
+end script
+
+# Logging settings
+console log
+EOF
+
+    SERVICE_NAME="cos"
+    STATUS_OUTPUT=$(sudo initctl status "$SERVICE_NAME")
+    if echo "$STATUS_OUTPUT" | grep -q "start/running"; then
+        echo "$SERVICE_NAME is running. Stopping it now..."
+        sudo initctl stop "$SERVICE_NAME"
+        echo "$SERVICE_NAME has been stopped."
+    else
+        echo "$SERVICE_NAME is not running."
+    fi
+    sudo initctl start $SERVICE_NAME
+  fi
+
+  echo "Installation completed successfully 🎉, you can use 'tail -f /var/log/upstart/cos.log' to check the logs."
 else
   echo "Skipping systemd service installation, just install cos binary..."
 fi
 
 echo "Successfully installed cos."
-
-echo "Installation completed successfully 🎉, you can use 'journalctl --user-unit=cos -f -n 50' to check the logs."
 exit 0
