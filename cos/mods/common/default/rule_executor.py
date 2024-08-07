@@ -31,6 +31,9 @@ _log = logging.getLogger(__name__)
 def build_engine_from_config(configs, upload_fn=None, api_client: ApiClient = None):
     rule_list = []
     for project_rule_set_spec in configs:
+        if not project_rule_set_spec.get("name", "").endswith("/diagnosisRule"):
+            _log.warning("==> Found an invalid project rule set, skipping")
+            continue
         project_name = project_rule_set_spec["name"].removesuffix("/diagnosisRule")
         for rule_set_spec in project_rule_set_spec["rules"]:
             if not rule_set_spec.get("enabled", False):

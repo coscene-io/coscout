@@ -57,6 +57,7 @@ class RemoteRule:
         for project in projects:
             project_name = project.get("name")
             project_rules = ProjectRemoteRule(self._api_client, project_name).read_config()
-            select_rules.append(project_rules)
+            if project_rules:
+                select_rules.append(project_rules)
 
         return select_rules
