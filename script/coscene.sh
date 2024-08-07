@@ -524,6 +524,8 @@ check_binary cos
 # check disable systemd, default will install cos.service
 if [[ $DISABLE_SERVICE -eq 0 ]]; then
   if [[ "$(ps --no-headers -o comm 1 2>&1)" == "systemd" ]] && command -v systemctl 2>&1; then
+    echo "Installing cos systemd service..."
+
     # create cos.service systemd file
     echo "Creating cos.service systemd file..."
     #  echo "Installing the systemd service requires root permissions."
@@ -556,17 +558,17 @@ Restart=always
 WantedBy=default.target
 EOL
     echo "Created cos.service systemd file: $USER_SYSTEMD_DIR/cos.service"
-
     echo "Starting cos service for $CUR_USER..."
-    systemctl --user daemon-reload
-    systemctl --user is-active --quiet cos && systemctl --user stop cos
-    systemctl --user enable cos
-    systemctl --user start cos
-    echo "Done."
+
+    sudo -u "$CUR_USER" XDG_RUNTIME_DIR="/run/user/$(id -u "${CUR_USER}")" systemctl --user daemon-reload
+    sudo -u "$CUR_USER" XDG_RUNTIME_DIR="/run/user/$(id -u "${CUR_USER}")" systemctl --user is-active --quiet cos && sudo -u "$CUR_USER" XDG_RUNTIME_DIR="/run/user/$(id -u "${CUR_USER}")" systemctl --user stop cos
+    sudo -u "$CUR_USER" XDG_RUNTIME_DIR="/run/user/$(id -u "${CUR_USER}")" systemctl --user enable cos
+    sudo -u "$CUR_USER" XDG_RUNTIME_DIR="/run/user/$(id -u "${CUR_USER}")" systemctl --user start cos
+    echo "Start cos service done."
 
     echo "Installation completed successfully 🎉, you can use 'journalctl --user-unit=cos -f -n 50' to check the logs."
   elif /sbin/init --version 2>&1 | grep -q upstart; then
-    echo "Installing upstart service..."
+    echo "Installing cos upstart service..."
     sudo tee /etc/init/cos.conf >/dev/null <<EOF
 description "coScout: Data Collector by coScene"
 author "coScene"
@@ -605,9 +607,9 @@ EOF
         echo "$SERVICE_NAME is not running."
     fi
     sudo initctl start $SERVICE_NAME
-  fi
 
-  echo "Installation completed successfully 🎉, you can use 'tail -f /var/log/upstart/cos.log' to check the logs."
+    echo "Installation completed successfully 🎉, you can use 'tail -f /var/log/upstart/cos.log' to check the logs."
+  fi
 else
   echo "Skipping systemd service installation, just install cos binary..."
 fi
