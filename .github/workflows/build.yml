@@ -112,6 +112,7 @@ jobs:
         env:
           version: ${{ needs.check.outputs.version }}
         run: |
+          python3 -m pip install nuitka
           python3 -m nuitka --experimental=allow-c-warnings --standalone --onefile --static-libpython=no --follow-imports --include-package=rosbags --output-filename=${{ matrix.file }} --output-dir=dist --company-name=coscene --onefile-tempdir-spec="{CACHE_DIR}/{COMPANY}/onefile_{PID}_{TIME}" --assume-yes-for-downloads main.py
 
       - name: Calculate SHA256
