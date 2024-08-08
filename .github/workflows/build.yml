@@ -48,10 +48,10 @@ jobs:
             os: linux
             label: ubuntu-latest
             file: cos
-          - arch: arm64
-            os: linux
-            label: [ linux-arm-64-8c-32g-300gb ]
-            file: cos
+#          - arch: arm64
+#            os: linux
+#            label: [ linux-arm-64-8c-32g-300gb ]
+#            file: cos
     runs-on: ${{ matrix.label }}
     needs: [check, lint-n-test]
     container: python:3.10-alpine
@@ -71,17 +71,16 @@ jobs:
           echo "PYTHON_VERSION=$(python3 --version | awk '{print $2}' | cut -d '.' -f 1,2)" >> $GITHUB_ENV
 
       - name: Check-out repo
-        run: |
-          git config --global url."https://${{ secrets.GH_TOKEN }}:x-oauth-basic@github.com/".insteadOf "https://github.com/"
-          git config --global --add safe.directory /__w/coscout/coscout
-          git clone https://github.com/coscene-io/coscout.git .
-          git checkout ${{ github.sha }}
-
-#        uses: actions/checkout@v4
-#        with:
-#          fetch-depth: 0
-#          submodules: 'true'
-#          token: ${{ secrets.GH_TOKEN }}
+#        run: |
+#          git config --global url."https://${{ secrets.GH_TOKEN }}:x-oauth-basic@github.com/".insteadOf "https://github.com/"
+#          git config --global --add safe.directory /__w/coscout/coscout
+#          git clone https://github.com/coscene-io/coscout.git .
+#          git checkout ${{ github.sha }}
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          submodules: 'true'
+          token: ${{ secrets.GH_TOKEN }}
 
       - uses: actions/cache@v3
         with:
