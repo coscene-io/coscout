@@ -65,7 +65,7 @@ jobs:
         run: |
           apk update && apk add build-base make patchelf git ccache gcc python3-dev musl-dev linux-headers
       - name: Setup Environment Variables
-        shell: bash
+        shell: sh
         run: |
           echo "NUITKA_CACHE_DIR=${{ github.action_path }}/nuitka/cache" >> $GITHUB_ENV
           echo "PYTHON_VERSION=$(python3 --version | awk '{print $2}' | cut -d '.' -f 1,2)" >> $GITHUB_ENV
@@ -84,13 +84,13 @@ jobs:
           restore-keys: ${{ runner.os }}-${{ matrix.arch }}-pip
 
       - name: Install Dependencies
-        shell: bash
+        shell: sh
         env:
           version: ${{ needs.check.outputs.version }}
         run: |
           python3 -m pip install -r requirements.txt --extra-index-url https://buf.build/gen/python
           mkdir -p dist
-          bash .github/scripts/update_version.sh $version
+          sh .github/scripts/update_version.sh $version
 
       - name: Cache Nuitka cache directory
         uses: actions/cache@v3
@@ -103,14 +103,14 @@ jobs:
             ${{ runner.os }}-${{ runner.arch }}-
 
       - name: Build cos binary
-        shell: bash
+        shell: sh
         env:
           version: ${{ needs.check.outputs.version }}
         run: |
           python3 -m nuitka --experimental=allow-c-warnings --standalone --onefile --static-libpython=no --follow-imports --include-package=rosbags --output-filename=${{ matrix.file }} --output-dir=dist --company-name=coscene --onefile-tempdir-spec="{CACHE_DIR}/{COMPANY}/onefile_{PID}_{TIME}" --assume-yes-for-downloads main.py
 
       - name: Calculate SHA256
-        shell: bash
+        shell: sh
         env:
           version: ${{ needs.check.outputs.version }}
         run: |
