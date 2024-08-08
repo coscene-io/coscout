@@ -71,14 +71,16 @@ jobs:
           echo "PYTHON_VERSION=$(python3 --version | awk '{print $2}' | cut -d '.' -f 1,2)" >> $GITHUB_ENV
 
       - name: Check-out repo
-#        run: |
-#          git config --global url."https://${{ secrets.GH_TOKEN }}:x-oauth-basic@github.com/".insteadOf "https://github.com/"
-#          git clone https://github.com/coscene-io/coscout.git
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          submodules: 'true'
-          token: ${{ secrets.GH_TOKEN }}
+        run: |
+          git config --global url."https://${{ secrets.GH_TOKEN }}:x-oauth-basic@github.com/".insteadOf "https://github.com/"
+          git clone https://github.com/coscene-io/coscout.git .
+          git checkout ${{ github.sha }}
+          
+#        uses: actions/checkout@v4
+#        with:
+#          fetch-depth: 0
+#          submodules: 'true'
+#          token: ${{ secrets.GH_TOKEN }}
 
       - uses: actions/cache@v3
         with:
