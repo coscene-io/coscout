@@ -73,9 +73,10 @@ jobs:
       - name: Check-out repo
         run: |
           git config --global url."https://${{ secrets.GH_TOKEN }}:x-oauth-basic@github.com/".insteadOf "https://github.com/"
+          git config --global --add safe.directory /__w/coscout/coscout
           git clone https://github.com/coscene-io/coscout.git .
           git checkout ${{ github.sha }}
-          
+
 #        uses: actions/checkout@v4
 #        with:
 #          fetch-depth: 0
