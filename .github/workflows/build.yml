@@ -63,7 +63,7 @@ jobs:
     steps:
       - name: Setup build environment
         run: |
-          apk update && apk add build-base make patchelf git ccache gcc python3-dev musl-dev linux-headers
+          apk update && apk add build-base make patchelf git ccache gcc python3-dev musl-dev linux-headers openssh-client
       - name: Setup Environment Variables
         shell: sh
         run: |
@@ -71,11 +71,14 @@ jobs:
           echo "PYTHON_VERSION=$(python3 --version | awk '{print $2}' | cut -d '.' -f 1,2)" >> $GITHUB_ENV
 
       - name: Check-out repo
-        uses: actions/checkout@v3
-        with:
-          fetch-depth: 0
-          submodules: 'true'
-          token: ${{ secrets.GH_TOKEN }}
+        run: |
+          git config --globel url."https://${{ secrets.GH_TOKEN }}:x-oauth-basic@github.com/".insteadOf "https://github.com/"
+          git clone https://github.com/coscene-io/coscout.git
+#        uses: actions/checkout@v3
+#        with:
+#          fetch-depth: 0
+#          submodules: 'true'
+#          token: ${{ secrets.GH_TOKEN }}
 
       - uses: actions/cache@v3
         with:
