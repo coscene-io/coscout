@@ -1,5 +1,5 @@
 # This is a workflow for building the cos executable on all three major platforms.
-name: Build-CLI
+name: Build-Cos
 
 # Controls when the workflow will run
 on:
@@ -48,36 +48,35 @@ jobs:
             os: linux
             label: ubuntu-latest
             file: cos
-          - arch: arm64
-            os: linux
-            label: [ linux-arm-64-8c-32g-300gb ]
-            file: cos
+#          - arch: arm64
+#            os: linux
+#            label: [ linux-arm-64-8c-32g-300gb ]
+#            file: cos
     runs-on: ${{ matrix.label }}
     needs: [check, lint-n-test]
-    container: coscene/nuitka:ubuntu-16.04
+    container: python:3.10-alpine
     permissions:
       contents: write
     env:
       ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: true
 
     steps:
+      - name: Setup build environment
+        run: |
+          apk update && apk add build-base make patchelf git ccache gcc python3-dev musl-dev linux-headers openssh-client
       - name: Setup Environment Variables
-        shell: bash
+        shell: sh
         run: |
           echo "NUITKA_CACHE_DIR=${{ github.action_path }}/nuitka/cache" >> $GITHUB_ENV
           echo "PYTHON_VERSION=$(python3 --version | awk '{print $2}' | cut -d '.' -f 1,2)" >> $GITHUB_ENV
 
-      - name: Install git on container
-        if: ${{ runner.os == 'Linux' }}
-        run: |
-          apt update
-          apt install -y software-properties-common
-          add-apt-repository -y ppa:git-core/ppa
-          apt update
-          apt install -y git patchelf ccache
-
       - name: Check-out repo
-        uses: actions/checkout@v3
+#        run: |
+#          git config --global url."https://${{ secrets.GH_TOKEN }}:x-oauth-basic@github.com/".insteadOf "https://github.com/"
+#          git config --global --add safe.directory /__w/coscout/coscout
+#          git clone https://github.com/coscene-io/coscout.git .
+#          git checkout ${{ github.sha }}
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
           submodules: 'true'
@@ -90,13 +89,13 @@ jobs:
           restore-keys: ${{ runner.os }}-${{ matrix.arch }}-pip
 
       - name: Install Dependencies
-        shell: bash
+        shell: sh
         env:
           version: ${{ needs.check.outputs.version }}
         run: |
           python3 -m pip install -r requirements.txt --extra-index-url https://buf.build/gen/python
           mkdir -p dist
-          bash .github/scripts/update_version.sh $version
+          sh .github/scripts/update_version.sh $version
 
       - name: Cache Nuitka cache directory
         uses: actions/cache@v3
@@ -109,15 +108,15 @@ jobs:
             ${{ runner.os }}-${{ runner.arch }}-
 
       - name: Build cos binary
-        shell: bash
+        shell: sh
         env:
           version: ${{ needs.check.outputs.version }}
         run: |
-          python3 -m pip install -q -r requirements.txt nuitka --extra-index-url https://buf.build/gen/python
-          python3 -m nuitka --standalone --onefile --static-libpython=no --follow-imports --include-package=rosbags --output-filename=${{ matrix.file }} --output-dir=dist --company-name=coscene --onefile-tempdir-spec="%CACHE_DIR%/%COMPANY%/onefile_%PID%_%TIME%" --assume-yes-for-downloads main.py
+          python3 -m pip install nuitka
+          python3 -m nuitka --experimental=allow-c-warnings --standalone --onefile --static-libpython=no --follow-imports --include-package=rosbags --output-filename=${{ matrix.file }} --output-dir=dist --company-name=coscene --onefile-tempdir-spec="{CACHE_DIR}/{COMPANY}/onefile_{PID}_{TIME}" --assume-yes-for-downloads main.py
 
       - name: Calculate SHA256
-        shell: bash
+        shell: sh
         env:
           version: ${{ needs.check.outputs.version }}
         run: |

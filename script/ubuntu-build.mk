@@ -13,8 +13,8 @@
 # limitations under the License.
 
 dist/cos:
-	python3 -m pip install -q -r requirements.txt nuitka
-	python3 -m nuitka --standalone --onefile --static-libpython=no --follow-imports --include-package=rosbags --output-filename=cos --output-dir=dist --company-name=coscene --onefile-tempdir-spec="%CACHE_DIR%/%COMPANY%/onefile_%PID%_%TIME%" main.py
+	python3 -m pip install -q -r requirements.txt nuitka --extra-index-url https://buf.build/gen/python
+	python3 -m nuitka --experimental=allow-c-warnings --standalone --onefile --static-libpython=no --follow-imports --include-package=rosbags --output-filename=cos --output-dir=dist --company-name=coscene --onefile-tempdir-spec="{CACHE_DIR}/{COMPANY}/onefile_{PID}_{TIME}" main.py
 
 ifneq ($(strip $(DOMESTIC)),)
 export PIP_INDEX_URL=https://pypi.tuna.tsinghua.edu.cn/simple
