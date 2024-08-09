@@ -385,16 +385,16 @@ script
 end script
 EOF
 
-    SERVICE_NAME="virmesh"
-    STATUS_OUTPUT=$(sudo initctl status "$SERVICE_NAME")
-    if echo "$STATUS_OUTPUT" | grep -q "start/running"; then
+      SERVICE_NAME="virmesh"
+      STATUS_OUTPUT=$(sudo initctl status "$SERVICE_NAME")
+      if echo "$STATUS_OUTPUT" | grep -q "start/running"; then
         echo "$SERVICE_NAME is running. Stopping it now..."
         sudo initctl stop "$SERVICE_NAME"
         echo "$SERVICE_NAME has been stopped."
-    else
+      else
         echo "$SERVICE_NAME is not running."
-    fi
-    sudo initctl start $SERVICE_NAME
+      fi
+      sudo initctl start $SERVICE_NAME
     fi
   else
     echo "Skipping systemd or upstart service installation, just install virmesh binary..."
@@ -431,12 +431,12 @@ COS_SHELL_BASE="$CUR_USER_HOME/.local"
 # make some directories
 COS_CONFIG_DIR="$CUR_USER_HOME/.config/cos"
 COS_STATE_DIR="$CUR_USER_HOME/.local/state/cos"
-mkdir -p "$COS_CONFIG_DIR" "$COS_STATE_DIR" "$COS_SHELL_BASE/bin"
+sudo -u "$CUR_USER" mkdir -p "$COS_CONFIG_DIR" "$COS_STATE_DIR" "$COS_SHELL_BASE/bin"
 
 # create config file
 echo "Creating config file..."
 # create config file ~/.config/cos/config.yaml
-cat >"${COS_CONFIG_DIR}/config.yaml" <<EOL
+sudo -u "$CUR_USER" tee "${COS_CONFIG_DIR}/config.yaml" >/dev/null <<EOL
 api:
   server_url: $SERVER_URL
   project_slug: $PROJECT_SLUG
@@ -518,20 +518,25 @@ fi
 
 echo "Installed new cos version:"
 mv -f "$TMP_FILE" "$COS_SHELL_BASE/bin/cos"
-chmod +x "$COS_SHELL_BASE/bin/cos"
+sudo chmod +x "$COS_SHELL_BASE/bin/cos"
 check_binary cos
 
 # check disable systemd, default will install cos.service
 if [[ $DISABLE_SERVICE -eq 0 ]]; then
   if [[ "$(ps --no-headers -o comm 1 2>&1)" == "systemd" ]] && command -v systemctl 2>&1; then
+    echo "Installing cos systemd service..."
+
+    echo "Enabling linger for $CUR_USER..."
+    sudo loginctl enable-linger "$CUR_USER"
     # create cos.service systemd file
     echo "Creating cos.service systemd file..."
     #  echo "Installing the systemd service requires root permissions."
     #  cat >/lib/systemd/system/cos.service <<EOL
 
     USER_SYSTEMD_DIR="$CUR_USER_HOME/.config/systemd/user"
-    mkdir -p "$USER_SYSTEMD_DIR"
-    cat >"$USER_SYSTEMD_DIR"/cos.service <<EOL
+    USER_DEFAULT_TARGET="$CUR_USER_HOME/.config/systemd/user/default.target.wants"
+    sudo -u "$CUR_USER" mkdir -p "$USER_SYSTEMD_DIR" "$USER_DEFAULT_TARGET"
+    sudo -u "$CUR_USER" tee "$USER_SYSTEMD_DIR"/cos.service >/dev/null <<EOL
 [Unit]
 Description=coScout: Data Collector by coScene
 Documentation=https://github.com/coscene-io/sample-json-api-files
@@ -556,17 +561,18 @@ Restart=always
 WantedBy=default.target
 EOL
     echo "Created cos.service systemd file: $USER_SYSTEMD_DIR/cos.service"
-
     echo "Starting cos service for $CUR_USER..."
-    systemctl --user daemon-reload
-    systemctl --user is-active --quiet cos && systemctl --user stop cos
-    systemctl --user enable cos
-    systemctl --user start cos
-    echo "Done."
+
+    XDG_RUNTIME_DIR="/run/user/$(id -u "${CUR_USER}")"
+    sudo -u "$CUR_USER" XDG_RUNTIME_DIR="$XDG_RUNTIME_DIR" systemctl --user daemon-reload
+    sudo -u "$CUR_USER" XDG_RUNTIME_DIR="$XDG_RUNTIME_DIR" systemctl --user is-active --quiet cos && sudo -u "$CUR_USER" XDG_RUNTIME_DIR="$XDG_RUNTIME_DIR" systemctl --user stop cos
+    sudo -u "$CUR_USER" XDG_RUNTIME_DIR="$XDG_RUNTIME_DIR" systemctl --user enable cos
+    sudo -u "$CUR_USER" XDG_RUNTIME_DIR="$XDG_RUNTIME_DIR" systemctl --user start cos
+    echo "Start cos service done."
 
     echo "Installation completed successfully 🎉, you can use 'journalctl --user-unit=cos -f -n 50' to check the logs."
   elif /sbin/init --version 2>&1 | grep -q upstart; then
-    echo "Installing upstart service..."
+    echo "Installing cos upstart service..."
     sudo tee /etc/init/cos.conf >/dev/null <<EOF
 description "coScout: Data Collector by coScene"
 author "coScene"
@@ -598,16 +604,16 @@ EOF
     SERVICE_NAME="cos"
     STATUS_OUTPUT=$(sudo initctl status "$SERVICE_NAME")
     if echo "$STATUS_OUTPUT" | grep -q "start/running"; then
-        echo "$SERVICE_NAME is running. Stopping it now..."
-        sudo initctl stop "$SERVICE_NAME"
-        echo "$SERVICE_NAME has been stopped."
+      echo "$SERVICE_NAME is running. Stopping it now..."
+      sudo initctl stop "$SERVICE_NAME"
+      echo "$SERVICE_NAME has been stopped."
     else
-        echo "$SERVICE_NAME is not running."
+      echo "$SERVICE_NAME is not running."
     fi
     sudo initctl start $SERVICE_NAME
-  fi
 
-  echo "Installation completed successfully 🎉, you can use 'tail -f /var/log/upstart/cos.log' to check the logs."
+    echo "Installation completed successfully 🎉, you can use 'tail -f /var/log/upstart/cos.log' to check the logs."
+  fi
 else
   echo "Skipping systemd service installation, just install cos binary..."
 fi
